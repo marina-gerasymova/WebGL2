@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - trackball controls</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+	</head>
+
+	<body>
+		<script type="module">
+			import * as THREE from './three.js-master/build/three.module.js';
+			import Stats from './three.js-master/examples/jsm/libs/stats.module.js';
+			import { GUI } from './three.js-master/examples/jsm/libs/dat.gui.module.js';
+			import { TrackballControls } from './three.js-master/examples/jsm/controls/TrackballControls.js';
+
+			var perspectiveCamera, orthographicCamera, controls, scene, renderer, stats;
+			var params = {
+				orthographicCamera: false
+			};
+			var frustumSize = 1000;
+
+			let cone;
+			let dodecahedron;
+			let camera;
+
+			init();
+			animate();
+
+			function init() {
+				var aspect = window.innerWidth / window.innerHeight;
+				perspectiveCamera = new THREE.PerspectiveCamera( 60, aspect, 1, 10000 );
+				perspectiveCamera.position.z = 200;
+				orthographicCamera = new THREE.OrthographicCamera( frustumSize * aspect / - 2, frustumSize * aspect / 2, frustumSize / 2, frustumSize / - 2, 1, 10000 );
+				orthographicCamera.position.z = 500;
+
+				scene = new THREE.Scene();
+			
+        dodecahedron = createDodecahedron(80)
+				dodecahedron.position.y = 160;
+				scene.add( dodecahedron )
+        
+				var axisHelper = createAxes(5000);
+				scene.add( axisHelper );
+
+        cone = createCone(80, 160, 100);
+				cone.position.y = -160;
+				scene.add( cone )
+
+				var sphere = createSphere(5000, 60, 40)
+				scene.add( sphere );
+
+				var f = create3dFunction()
+				f.position.x = 100
+				scene.add( f );
+
+				var light = new THREE.DirectionalLight( 0xffffff );
+				light.position.set( 1, 1, 1 );
+				scene.add( light );
+				var light = new THREE.DirectionalLight( 0x000000 );
+				light.position.set( - 1, - 1, - 1 );
+				scene.add( light );
+				var light = new THREE.AmbientLight( 0xaaaaaa );
+				scene.add( light );
+
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				document.body.appendChild( renderer.domElement );
+				stats = new Stats();
+				document.body.appendChild( stats.dom );
+
+				var gui = new GUI();
+				gui.add( params, 'orthographicCamera' ).name( 'use orthographic' ).onChange( function ( value ) {
+					controls.dispose();
+					createControls( value ? orthographicCamera : perspectiveCamera );
+				} );
+
+				window.addEventListener( 'resize', onWindowResize, false );
+				createControls( perspectiveCamera );
+			}
+
+			function createDodecahedron(radius) {
+				var dodecahedronGeometry = new THREE.DodecahedronGeometry(radius);
+				var wireframe = new THREE.WireframeGeometry( dodecahedronGeometry );
+				dodecahedron = new THREE.LineSegments( wireframe );
+
+				return dodecahedron;
+			}
+
+			function createCone(radius, height, segments) {
+				var coneGeometry = new THREE.ConeGeometry(80, 160, 100);
+        var coneMaterial = new THREE.MeshStandardMaterial( { color: 0x2222ee } );
+        cone = new THREE.Mesh(coneGeometry, coneMaterial);
+
+				return cone
+			}
+
+			function createAxes(length) {
+
+				return new THREE.AxesHelper(length);
+			}
+
+			function createSphere(radius, segmentWidth, segmentHeight) {
+				var geometry = new THREE.SphereBufferGeometry( radius, segmentHeight, segmentWidth );
+				geometry.scale( - 1, 1, 1 );
+				var texture = new THREE.TextureLoader().load( 'textures/2294472375_24a3b8ef46_o.jpg' );
+				var materialBG = new THREE.MeshBasicMaterial( { map: texture } );
+				var sphere = new THREE.Mesh( geometry, materialBG );
+
+				return sphere;
+			}
+
+			function create3dFunction() {
+				var geometry = new THREE.ParametricGeometry( build3DPlot(300, 300), 250, 250 );
+				var material = new THREE.MeshPhongMaterial( { 
+					color: 0xdddd33,
+					side: THREE.DoubleSide
+				 } );
+				var f = new THREE.Mesh( geometry, material );
+				f.doubleSided = true;
+
+				return f;
+			}
+
+			function createControls( camera ) {
+				controls = new TrackballControls( camera, renderer.domElement );
+				controls.rotateSpeed = 2.0;
+				controls.zoomSpeed = 1.2;
+				controls.panSpeed = 0.8;
+				controls.maxDistance = 5000;
+			}
+
+			function onWindowResize() {
+				var aspect = window.innerWidth / window.innerHeight;
+				perspectiveCamera.aspect = aspect;
+				perspectiveCamera.updateProjectionMatrix();
+				orthographicCamera.left = - frustumSize * aspect / 2;
+				orthographicCamera.right = frustumSize * aspect / 2;
+				orthographicCamera.top = frustumSize / 2;
+				orthographicCamera.bottom = - frustumSize / 2;
+				orthographicCamera.updateProjectionMatrix();
+				renderer.setSize( window.innerWidth, window.innerHeight );
+				controls.handleResize();
+			}
+
+			function animate() {
+				requestAnimationFrame( animate );
+				controls.update();
+				stats.update();
+				camera = ( params.orthographicCamera ) ? orthographicCamera : perspectiveCamera;
+				renderer.render( scene, camera );
+			}
+
+			document.onkeypress = e => {
+				let vector
+				let quaternion = new THREE.Quaternion
+				switch (e.code) {
+					case 'KeyW':
+						vector = new THREE.Vector3( 1, 0, 0 )
+						camera.position.applyQuaternion(quaternion.setFromAxisAngle(vector, 0.15));
+						camera.up.applyQuaternion(quaternion.setFromAxisAngle(vector, 0.15));
+						break
+					case 'KeyS':
+						vector = new THREE.Vector3( -1, 0, 0 )
+						camera.position.applyQuaternion(quaternion.setFromAxisAngle(vector, 0.15));
+						camera.up.applyQuaternion(quaternion.setFromAxisAngle(vector, 0.15));
+						break
+					case 'KeyA':
+						vector = new THREE.Vector3( 0, 1, 0 )
+						camera.position.applyQuaternion(quaternion.setFromAxisAngle(vector, 0.15));
+						camera.up.applyQuaternion(quaternion.setFromAxisAngle(vector, 0.15));
+						break
+					case 'KeyD':
+						vector = new THREE.Vector3( 0, -1, 0 )
+						camera.position.applyQuaternion(quaternion.setFromAxisAngle(vector, 0.15));
+						camera.up.applyQuaternion(quaternion.setFromAxisAngle(vector, 0.15));
+						break;
+				}
+			}
+
+			function build3DPlot(width, height) {
+				
+				return function f(u, v, point) {
+					let x = u * width
+					let y = v * height
+					let z
+
+					z = Math.sqrt(x * y)
+					point.set(x, y, z)
+				}
+			}
+		</script>
+	</body>
+</html>
